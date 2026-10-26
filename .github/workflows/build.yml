@@ -1,0 +1,65 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Get the DAWproject schema
+        run: |
+          mkdir -p xsd
+          curl -fsSL -o xsd/Project.xsd https://raw.githubusercontent.com/bitwig/dawproject/main/Project.xsd
+          curl -fsSL -o xsd/MetaData.xsd https://raw.githubusercontent.com/bitwig/dawproject/main/MetaData.xsd
+
+      - name: Configure
+        run: cmake -S . -B build -A x64
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: Test import
+        run: python tests/test_converter.py build/Release/dawproject2rpp.exe
+
+      - name: Test export
+        env:
+          DAWPROJECT_XSD: ${{ github.workspace }}/xsd
+        run: JAVA="$JAVA_HOME/bin/java" python tests/test_export.py build/Release
+
+      - name: Package
+        run: python tools/make_package.py
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DAWproject-for-REAPER
+          path: dist/DAWproject-for-REAPER/
+
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/DAWproject-for-REAPER-*-win64.zip \
+            --title "DAWproject for REAPER $GITHUB_REF_NAME" --generate-notes

@@ -1,0 +1,31 @@
+desc:DAWproject Limiter
+//tags: dynamics limiter
+//author: reaper_dawproject
+// Stands in for the DAWproject built-in Limiter device (stereo linked, ceiling at the threshold).
+
+slider1:-1<-30,0,0.1>Threshold (dB)
+slider2:0<-24,24,0.1>Input Gain (dB)
+slider3:0<-24,24,0.1>Output Gain (dB)
+slider4:1<0.01,100,0.01:log>Attack (ms)
+slider5:50<1,2000,1:log>Release (ms)
+
+@init
+env = 0;
+
+@slider
+ing = 10^(slider2/20);
+outg = 10^(slider3/20);
+ceiling = 10^(slider1/20);
+ac = exp(-1/(max(slider4, 0.01)*0.001*srate));
+rc = exp(-1/(max(slider5, 0.1)*0.001*srate));
+
+@sample
+x0 = spl0*ing;
+x1 = spl1*ing;
+lvl = max(abs(x0), abs(x1));
+ldb = lvl > 0.00000001 ? 20*log10(lvl) : -160;
+gr = ldb > slider1 ? ldb - slider1 : 0;
+env = gr > env ? gr + ac*(env - gr) : gr + rc*(env - gr);
+g = 10^(-env/20);
+spl0 = max(-ceiling, min(ceiling, x0*g))*outg;
+spl1 = max(-ceiling, min(ceiling, x1*g))*outg;

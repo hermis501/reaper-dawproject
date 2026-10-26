@@ -1,0 +1,27 @@
+desc:DAWproject Noise Gate
+//tags: dynamics gate expander
+//author: reaper_dawproject
+// Stands in for the DAWproject built-in NoiseGate device (downward expander, stereo linked).
+
+slider1:-40<-80,0,0.1>Threshold (dB)
+slider2:-80<-100,0,0.1>Range (dB)
+slider3:10<1,100,0.01:log>Ratio
+slider4:1<0.01,500,0.01:log>Attack (ms)
+slider5:100<1,5000,1:log>Release (ms)
+
+@init
+env = 0;
+
+@slider
+ac = exp(-1/(max(slider4, 0.01)*0.001*srate));
+rc = exp(-1/(max(slider5, 0.1)*0.001*srate));
+
+@sample
+lvl = max(abs(spl0), abs(spl1));
+ldb = lvl > 0.00000001 ? 20*log10(lvl) : -160;
+under = slider1 - ldb;
+red = under > 0 ? min(under*(max(slider3, 1) - 1), -slider2) : 0;
+env = red < env ? red + ac*(env - red) : red + rc*(env - red);
+g = 10^(-env/20);
+spl0 *= g;
+spl1 *= g;

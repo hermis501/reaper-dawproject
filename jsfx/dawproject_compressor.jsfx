@@ -1,0 +1,34 @@
+desc:DAWproject Compressor
+//tags: dynamics compressor
+//author: reaper_dawproject
+// Stands in for the DAWproject built-in Compressor device (feed-forward, stereo linked).
+
+slider1:-20<-60,0,0.1>Threshold (dB)
+slider2:4<1,100,0.01:log>Ratio
+slider3:10<0.01,500,0.01:log>Attack (ms)
+slider4:100<1,5000,1:log>Release (ms)
+slider5:0<-24,24,0.1>Input Gain (dB)
+slider6:0<-24,24,0.1>Output Gain (dB)
+slider7:0<0,1,1{Off,On}>Auto Makeup
+
+@init
+env = 0;
+
+@slider
+ing = 10^(slider5/20);
+outg = 10^(slider6/20);
+ac = exp(-1/(max(slider3, 0.01)*0.001*srate));
+rc = exp(-1/(max(slider4, 0.1)*0.001*srate));
+slope = 1 - 1/max(slider2, 1);
+makeup = slider7 > 0.5 ? -slider1*slope*0.5 : 0;
+
+@sample
+x0 = spl0*ing;
+x1 = spl1*ing;
+lvl = max(abs(x0), abs(x1));
+ldb = lvl > 0.00000001 ? 20*log10(lvl) : -160;
+gr = ldb > slider1 ? (ldb - slider1)*slope : 0;
+env = gr > env ? gr + ac*(env - gr) : gr + rc*(env - gr);
+g = 10^((makeup - env)/20)*outg;
+spl0 = x0*g;
+spl1 = x1*g;

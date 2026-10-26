@@ -1,0 +1,136 @@
+desc:DAWproject Equalizer (8 bands)
+//tags: equalizer filter
+//author: reaper_dawproject
+// Stands in for the DAWproject built-in Equalizer device. Bands are RBJ biquads;
+// low/high pass of order 1..8 are Butterworth cascades (order 2 uses the band's Q).
+
+slider1:0<-24,24,0.1>Input Gain (dB)
+slider2:0<-24,24,0.1>Output Gain (dB)
+slider3:0<0,1,1{Off,On}>Band 1 Enabled
+slider4:0<0,6,1{Bell,Low Shelf,High Shelf,Low Pass,High Pass,Band Pass,Notch}>Band 1 Type
+slider5:60<20,20000,1:log>Band 1 Frequency (Hz)
+slider6:0<-24,24,0.1>Band 1 Gain (dB)
+slider7:0.707<0.1,18,0.001:log>Band 1 Q
+slider8:2<1,8,1>Band 1 Order
+slider9:0<0,1,1{Off,On}>Band 2 Enabled
+slider10:0<0,6,1{Bell,Low Shelf,High Shelf,Low Pass,High Pass,Band Pass,Notch}>Band 2 Type
+slider11:150<20,20000,1:log>Band 2 Frequency (Hz)
+slider12:0<-24,24,0.1>Band 2 Gain (dB)
+slider13:0.707<0.1,18,0.001:log>Band 2 Q
+slider14:2<1,8,1>Band 2 Order
+slider15:0<0,1,1{Off,On}>Band 3 Enabled
+slider16:0<0,6,1{Bell,Low Shelf,High Shelf,Low Pass,High Pass,Band Pass,Notch}>Band 3 Type
+slider17:400<20,20000,1:log>Band 3 Frequency (Hz)
+slider18:0<-24,24,0.1>Band 3 Gain (dB)
+slider19:0.707<0.1,18,0.001:log>Band 3 Q
+slider20:2<1,8,1>Band 3 Order
+slider21:0<0,1,1{Off,On}>Band 4 Enabled
+slider22:0<0,6,1{Bell,Low Shelf,High Shelf,Low Pass,High Pass,Band Pass,Notch}>Band 4 Type
+slider23:1000<20,20000,1:log>Band 4 Frequency (Hz)
+slider24:0<-24,24,0.1>Band 4 Gain (dB)
+slider25:0.707<0.1,18,0.001:log>Band 4 Q
+slider26:2<1,8,1>Band 4 Order
+slider27:0<0,1,1{Off,On}>Band 5 Enabled
+slider28:0<0,6,1{Bell,Low Shelf,High Shelf,Low Pass,High Pass,Band Pass,Notch}>Band 5 Type
+slider29:2500<20,20000,1:log>Band 5 Frequency (Hz)
+slider30:0<-24,24,0.1>Band 5 Gain (dB)
+slider31:0.707<0.1,18,0.001:log>Band 5 Q
+slider32:2<1,8,1>Band 5 Order
+slider33:0<0,1,1{Off,On}>Band 6 Enabled
+slider34:0<0,6,1{Bell,Low Shelf,High Shelf,Low Pass,High Pass,Band Pass,Notch}>Band 6 Type
+slider35:6000<20,20000,1:log>Band 6 Frequency (Hz)
+slider36:0<-24,24,0.1>Band 6 Gain (dB)
+slider37:0.707<0.1,18,0.001:log>Band 6 Q
+slider38:2<1,8,1>Band 6 Order
+slider39:0<0,1,1{Off,On}>Band 7 Enabled
+slider40:0<0,6,1{Bell,Low Shelf,High Shelf,Low Pass,High Pass,Band Pass,Notch}>Band 7 Type
+slider41:12000<20,20000,1:log>Band 7 Frequency (Hz)
+slider42:0<-24,24,0.1>Band 7 Gain (dB)
+slider43:0.707<0.1,18,0.001:log>Band 7 Q
+slider44:2<1,8,1>Band 7 Order
+slider45:0<0,1,1{Off,On}>Band 8 Enabled
+slider46:0<0,6,1{Bell,Low Shelf,High Shelf,Low Pass,High Pass,Band Pass,Notch}>Band 8 Type
+slider47:16000<20,20000,1:log>Band 8 Frequency (Hz)
+slider48:0<-24,24,0.1>Band 8 Gain (dB)
+slider49:0.707<0.1,18,0.001:log>Band 8 Q
+slider50:2<1,8,1>Band 8 Order
+
+@init
+NB = 8;
+NS = 4;
+coef = 0;      // NB*NS biquads x 5 coefficients
+state = 1024;  // NB*NS biquads x 2 channels x 2 state values
+nst = 2048;    // active biquads per band
+
+function setc(i, b0, b1, b2, a0, a1, a2) (
+  coef[i*5] = b0/a0; coef[i*5+1] = b1/a0; coef[i*5+2] = b2/a0;
+  coef[i*5+3] = a1/a0; coef[i*5+4] = a2/a0;
+);
+
+function calcband(b) local(base, typ, f, g, q, ord, w0, cs, sn, A, al, sa, K, i, n, odd, ang, qq) (
+  base = 3 + b*6;
+  typ = slider(base+1);
+  f = max(10, min(slider(base+2), srate*0.49));
+  g = slider(base+3);
+  q = max(slider(base+4), 0.025);
+  ord = max(1, min(8, floor(slider(base+5) + 0.5)));
+  n = 0;
+  slider(base) > 0.5 ? (
+    w0 = 2*$pi*f/srate; cs = cos(w0); sn = sin(w0); A = 10^(g/40);
+    al = sn/(2*q); sa = 2*sqrt(A)*al;
+    typ == 0 ? (
+      setc(b*NS, 1+al*A, -2*cs, 1-al*A, 1+al/A, -2*cs, 1-al/A); n = 1;
+    ) : typ == 1 ? (
+      setc(b*NS, A*((A+1)-(A-1)*cs+sa), 2*A*((A-1)-(A+1)*cs), A*((A+1)-(A-1)*cs-sa),
+           (A+1)+(A-1)*cs+sa, -2*((A-1)+(A+1)*cs), (A+1)+(A-1)*cs-sa); n = 1;
+    ) : typ == 2 ? (
+      setc(b*NS, A*((A+1)+(A-1)*cs+sa), -2*A*((A-1)+(A+1)*cs), A*((A+1)+(A-1)*cs-sa),
+           (A+1)-(A-1)*cs+sa, 2*((A-1)-(A+1)*cs), (A+1)-(A-1)*cs-sa); n = 1;
+    ) : typ == 3 || typ == 4 ? (
+      odd = ord & 1;
+      odd ? (
+        K = tan(w0/2);
+        typ == 3 ? setc(b*NS, K, K, 0, K+1, K-1, 0) : setc(b*NS, 1, -1, 0, K+1, K-1, 0);
+        n = 1;
+      );
+      i = 0;
+      loop(floor(ord/2),
+        ang = odd ? (i+1)*$pi/ord : (2*i+1)*$pi/(2*ord);
+        qq = ord == 2 ? q : 1/(2*cos(ang));
+        al = sn/(2*qq);
+        typ == 3 ? setc(b*NS+n, (1-cs)/2, 1-cs, (1-cs)/2, 1+al, -2*cs, 1-al)
+                 : setc(b*NS+n, (1+cs)/2, -(1+cs), (1+cs)/2, 1+al, -2*cs, 1-al);
+        n += 1; i += 1;
+      );
+    ) : typ == 5 ? (
+      setc(b*NS, al, 0, -al, 1+al, -2*cs, 1-al); n = 1;
+    ) : (
+      setc(b*NS, 1, -2*cs, 1, 1+al, -2*cs, 1-al); n = 1;
+    );
+  );
+  nst[b] = n;
+);
+
+@slider
+ing = 10^(slider1/20);
+outg = 10^(slider2/20);
+b = 0;
+loop(NB, calcband(b); b += 1;);
+
+@sample
+x0 = spl0*ing;
+x1 = spl1*ing;
+b = 0;
+loop(NB,
+  s = 0;
+  loop(nst[b],
+    c = (b*NS+s)*5;
+    z = state + (b*NS+s)*4;
+    y = coef[c]*x0 + z[0]; z[0] = coef[c+1]*x0 - coef[c+3]*y + z[1]; z[1] = coef[c+2]*x0 - coef[c+4]*y; x0 = y;
+    y = coef[c]*x1 + z[2]; z[2] = coef[c+1]*x1 - coef[c+3]*y + z[3]; z[3] = coef[c+2]*x1 - coef[c+4]*y; x1 = y;
+    s += 1;
+  );
+  b += 1;
+);
+spl0 = x0*outg;
+spl1 = x1*outg;

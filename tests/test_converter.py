@@ -1,7 +1,7 @@
 """Generates DAWproject files covering the converter's features, converts them with
 dawproject2rpp and checks the resulting RPP.
 
-    python tests/test_converter.py [path/to/dawproject2rpp.exe]
+    python tests/test_converter.py [path/to/dawproject2rpp(.exe)]
 """
 
 import base64
@@ -18,7 +18,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # build/Release of this folder's own build, else of the repository's top-level build
 DEFAULT_BIN = next((d for d in (os.path.join(ROOT, "build", "Release"), os.path.join(os.path.dirname(ROOT), "build", "Release"))
                     if os.path.isdir(d)), os.path.join(ROOT, "build", "Release"))
-DEFAULT_EXE = os.path.join(DEFAULT_BIN, "dawproject2rpp.exe")
+DEFAULT_EXE = os.path.join(DEFAULT_BIN, "dawproject2rpp" + (".exe" if os.name == "nt" else ""))
 
 PROL_ID = "AFD92F729A0447B7B5E8D1D568DEA985"  # FabFilter Pro-L 2; REAPER hashes it to 1938458649
 

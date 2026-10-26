@@ -12,7 +12,17 @@ permissions:
 
 jobs:
   build:
-    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: win64
+            configure: -A x64
+          - os: macos-latest
+            platform: macos
+            configure: ""
+    runs-on: ${{ matrix.os }}
     defaults:
       run:
         shell: bash
@@ -35,31 +45,46 @@ jobs:
           curl -fsSL -o xsd/MetaData.xsd https://raw.githubusercontent.com/bitwig/dawproject/main/MetaData.xsd
 
       - name: Configure
-        run: cmake -S . -B build -A x64
+        run: cmake -S . -B build ${{ matrix.configure }}
 
       - name: Build
         run: cmake --build build --config Release
 
       - name: Test import
-        run: python tests/test_converter.py build/Release/dawproject2rpp.exe
+        run: python tests/test_converter.py
 
       - name: Test export
         env:
           DAWPROJECT_XSD: ${{ github.workspace }}/xsd
         run: JAVA="$JAVA_HOME/bin/java" python tests/test_export.py build/Release
 
+      - name: Check the macOS binaries
+        if: runner.os == 'macOS'
+        run: |
+          lipo -info build/Release/reaper_dawproject.dylib
+          nm -gU build/Release/reaper_dawproject.dylib | grep -E "ReaperPluginEntry"
+
       - name: Package
         run: python tools/make_package.py
 
       - uses: actions/upload-artifact@v4
         with:
-          name: DAWproject-for-REAPER
-          path: dist/DAWproject-for-REAPER/
+          name: DAWproject-for-REAPER-${{ matrix.platform }}
+          path: dist/*.zip
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
 
       - name: Release
-        if: startsWith(github.ref, 'refs/tags/v')
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create "$GITHUB_REF_NAME" dist/DAWproject-for-REAPER-*-win64.zip \
+          gh release create "$GITHUB_REF_NAME" dist/*.zip --repo "$GITHUB_REPOSITORY" \
             --title "DAWproject for REAPER $GITHUB_REF_NAME" --generate-notes

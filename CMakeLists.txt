@@ -1,5 +1,8 @@
 # reaper_dawproject: DAWproject import/export for REAPER, plus dawproject2rpp and rpp2dawproject.
 cmake_minimum_required(VERSION 3.20)
+# macOS: one universal binary for Apple silicon and Intel Macs
+set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "macOS architectures")
+set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15" CACHE STRING "Minimum macOS version")
 project(reaper_dawproject VERSION 0.1.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -11,6 +14,19 @@ if(MSVC)
   add_compile_definitions(_CRT_SECURE_NO_WARNINGS NOMINMAX)
 endif()
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
+# Single-configuration generators (Makefiles, Ninja: macOS) also put the binaries in
+# build/Release, like Visual Studio does.
+get_property(_multi_config GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
+if(NOT _multi_config)
+  if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Release)
+  endif()
+  if(NOT CMAKE_RUNTIME_OUTPUT_DIRECTORY)
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}")
+    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}")
+  endif()
+endif()
 
 # The bundled JSFX (stand-ins for DAWproject built-in devices) are compiled into the binaries.
 set(JSFX_NAMES dawproject_eq dawproject_compressor dawproject_gate dawproject_limiter)
@@ -58,6 +74,14 @@ add_library(reaper_dawproject SHARED src/reaper_main.cpp src/reaper_ext.cpp)
 target_include_directories(reaper_dawproject PRIVATE third_party/reaper-sdk)
 target_link_libraries(reaper_dawproject PRIVATE dawproject_core)
 set_target_properties(reaper_dawproject PROPERTIES PREFIX "" OUTPUT_NAME "reaper_dawproject${_suffix}")
+if(APPLE)
+  # REAPER provides the Win32-like API (SWELL) on macOS; swell-modstub.mm looks it up at load time
+  enable_language(OBJCXX)
+  target_sources(reaper_dawproject PRIVATE third_party/WDL/swell/swell-modstub.mm)
+  target_compile_definitions(reaper_dawproject PRIVATE SWELL_PROVIDED_BY_APP)
+  target_link_libraries(reaper_dawproject PRIVATE "-framework AppKit")
+  set_target_properties(reaper_dawproject PROPERTIES SUFFIX ".dylib")
+endif()
 
 foreach(_tool dawproject2rpp rpp2dawproject)
   add_executable(${_tool} cli/${_tool}.cpp)

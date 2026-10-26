@@ -4,26 +4,36 @@ A REAPER extension that opens `.dawproject` files as REAPER projects and saves R
 
 DAWproject is the open project exchange format supported by Bitwig Studio, Studio One, Cubase 14+, Cubasis, VST Live, n-Track and others.
 
-Version {VERSION}, Windows 64-bit, REAPER 6.74 or later (REAPER 7 recommended).
+Version {VERSION}, Windows (64-bit) and macOS (10.15 or later, Apple silicon and Intel), REAPER 6.74 or later (REAPER 7 recommended).
 
 ## Contents
 
-- `reaper_dawproject-x64.dll`: the REAPER extension
-- `Effects\DAWproject\*.jsfx`: the four effects that stand in for DAWproject's built-in devices (the extension installs them by itself; the copies are here for manual installs)
-- `command-line\dawproject2rpp.exe` and `command-line\rpp2dawproject.exe`: the same conversions without REAPER (optional)
+- `reaper_dawproject-x64.dll` (Windows) or `reaper_dawproject.dylib` (macOS): the REAPER extension
+- `Effects/DAWproject/*.jsfx`: the four effects that stand in for DAWproject's built-in devices (the extension installs them by itself; the copies are here for manual installs)
+- `command-line/dawproject2rpp` and `command-line/rpp2dawproject` (`.exe` on Windows): the same conversions without REAPER (optional)
 - `THIRD-PARTY-NOTICES.txt`
 
 ## Install
 
 1. Close REAPER.
-2. Copy `reaper_dawproject-x64.dll` into REAPER's `UserPlugins` folder. That is usually `%APPDATA%\REAPER\UserPlugins`. In REAPER, *Options > Show REAPER resource path in explorer/finder* opens the resource folder that contains `UserPlugins`. For a portable install, use the `UserPlugins` folder next to `reaper.exe`.
+2. Copy the extension into REAPER's `UserPlugins` folder:
+   - Windows: `reaper_dawproject-x64.dll` into `%APPDATA%\REAPER\UserPlugins`
+   - macOS: `reaper_dawproject.dylib` into `~/Library/Application Support/REAPER/UserPlugins` (in Finder: *Go > Go to Folder...*)
+
+   In REAPER, *Options > Show REAPER resource path in explorer/finder* opens the resource folder that contains `UserPlugins`. For a portable install, use the `UserPlugins` folder next to the REAPER program.
 3. Start REAPER.
 
-On start, the extension writes four JSFX effects to `Effects\DAWproject\` in the resource folder. They stand in for the DAWproject built-in devices: equalizer, compressor, noise gate and limiter.
+**macOS:** the extension is not notarized by Apple. If REAPER does not load it (the File menu entries are missing, or macOS says the file can't be verified), remove the download quarantine in Terminal and restart REAPER:
 
-If the effects folder can't be written (for example a read-only resource folder), copy the `Effects\DAWproject` folder from this package into REAPER's `Effects` folder yourself.
+```
+xattr -dr com.apple.quarantine ~/Library/Application\ Support/REAPER/UserPlugins/reaper_dawproject.dylib
+```
 
-To uninstall, delete the DLL. The `Effects\DAWproject` folder can be deleted too.
+On start, the extension writes four JSFX effects to `Effects/DAWproject/` in the resource folder. They stand in for the DAWproject built-in devices: equalizer, compressor, noise gate and limiter.
+
+If the effects folder can't be written (for example a read-only resource folder), copy the `Effects/DAWproject` folder from this package into REAPER's `Effects` folder yourself.
+
+To uninstall, delete the extension file. The `Effects/DAWproject` folder can be deleted too.
 
 The extension can be installed together with *AAF for REAPER* (https://github.com/hermis501/reaper-aaf).
 
@@ -114,7 +124,7 @@ Not exported:
 
 ## Command-line tools (optional)
 
-Open a command prompt in the `command-line` folder:
+Open a command prompt (Windows) or Terminal (macOS) in the `command-line` folder. On macOS, start the tools with `./` (for example `./dawproject2rpp`); if macOS blocks them, run `xattr -dr com.apple.quarantine .` in that folder first.
 
 ```
 dawproject2rpp song.dawproject [song.rpp] [--media <folder>]
@@ -127,3 +137,4 @@ rpp2dawproject song.rpp [song.dawproject] [--external-media]
 
 - The built-in device JSFX reproduce the original settings, not the exact sound of the original DAW's devices.
 - Plug-ins have to be installed in REAPER to load. Plug-in state is passed through unchanged.
+- The macOS version is built and tested automatically (conversion tests and command-line tools), but it has not yet been tried inside REAPER on a Mac. Please report any problem.

@@ -4,26 +4,41 @@ A REAPER extension that opens `.dawproject` files as REAPER projects and saves R
 
 DAWproject is the open project exchange format supported by Bitwig Studio, Studio One, Cubase 14+, Cubasis, VST Live, n-Track and others.
 
-Windows 64-bit, REAPER 6.74 or later (REAPER 7 recommended).
+Windows (64-bit) and macOS (10.15 or later, Apple silicon and Intel), REAPER 6.74 or later (REAPER 7 recommended).
 
 ## Download
 
-Get the latest `DAWproject-for-REAPER-<version>-win64.zip` from [Releases](https://github.com/hermis501/reaper-dawproject/releases). It contains:
+Get the latest zip for your system from [Releases](https://github.com/hermis501/reaper-dawproject/releases):
 
-- `reaper_dawproject-x64.dll`: the REAPER extension
-- `Effects\DAWproject\*.jsfx`: the four effects that stand in for DAWproject's built-in devices (the extension installs them by itself; the copies are for manual installs)
-- `command-line\dawproject2rpp.exe` and `command-line\rpp2dawproject.exe`: the same conversions without REAPER (optional)
+- Windows: `DAWproject-for-REAPER-<version>-win64.zip`
+- macOS: `DAWproject-for-REAPER-<version>-macos.zip` (one build for Apple silicon and Intel Macs)
+
+Each contains:
+
+- `reaper_dawproject-x64.dll` (Windows) or `reaper_dawproject.dylib` (macOS): the REAPER extension
+- `Effects/DAWproject/*.jsfx`: the four effects that stand in for DAWproject's built-in devices (the extension installs them by itself; the copies are for manual installs)
+- `command-line/dawproject2rpp` and `command-line/rpp2dawproject` (`.exe` on Windows): the same conversions without REAPER (optional)
 - `README.md`, `LICENSE.txt`, `THIRD-PARTY-NOTICES.txt`
 
 ## Install
 
 1. Close REAPER.
-2. Copy `reaper_dawproject-x64.dll` into REAPER's `UserPlugins` folder. That is usually `%APPDATA%\REAPER\UserPlugins`. In REAPER, *Options > Show REAPER resource path in explorer/finder* opens the resource folder that contains `UserPlugins`. For a portable install, use the `UserPlugins` folder next to `reaper.exe`.
+2. Copy the extension into REAPER's `UserPlugins` folder:
+   - Windows: `reaper_dawproject-x64.dll` into `%APPDATA%\REAPER\UserPlugins`
+   - macOS: `reaper_dawproject.dylib` into `~/Library/Application Support/REAPER/UserPlugins` (in Finder: *Go > Go to Folder...*)
+
+   In REAPER, *Options > Show REAPER resource path in explorer/finder* opens the resource folder that contains `UserPlugins`. For a portable install, use the `UserPlugins` folder next to the REAPER program.
 3. Start REAPER.
 
-On start, the extension writes four JSFX effects to `Effects\DAWproject\` in the resource folder. They stand in for the DAWproject built-in devices: equalizer, compressor, noise gate and limiter. If the effects folder can't be written, copy the `Effects\DAWproject` folder from the zip into REAPER's `Effects` folder yourself.
+**macOS:** the extension is not notarized by Apple. If REAPER does not load it (the File menu entries are missing, or macOS says the file can't be verified), remove the download quarantine in Terminal and restart REAPER:
 
-To uninstall, delete the DLL. The extension can be installed together with [AAF for REAPER](https://github.com/hermis501/reaper-aaf).
+```
+xattr -dr com.apple.quarantine ~/Library/Application\ Support/REAPER/UserPlugins/reaper_dawproject.dylib
+```
+
+On start, the extension writes four JSFX effects to `Effects/DAWproject/` in the resource folder. They stand in for the DAWproject built-in devices: equalizer, compressor, noise gate and limiter. If the effects folder can't be written, copy the `Effects/DAWproject` folder from the zip into REAPER's `Effects` folder yourself.
+
+To uninstall, delete the extension file. The extension can be installed together with [AAF for REAPER](https://github.com/hermis501/reaper-aaf).
 
 ## Opening a DAWproject file
 
@@ -112,7 +127,7 @@ Not exported:
 
 ## Command-line tools (optional)
 
-Open a command prompt in the `command-line` folder:
+Open a command prompt (Windows) or Terminal (macOS) in the `command-line` folder. On macOS, start the tools with `./` (for example `./dawproject2rpp`); if macOS blocks them, run `xattr -dr com.apple.quarantine .` in that folder first.
 
 ```
 dawproject2rpp song.dawproject [song.rpp] [--media <folder>]
@@ -125,19 +140,20 @@ rpp2dawproject song.rpp [song.dawproject] [--external-media]
 
 - The built-in device JSFX reproduce the original settings, not the exact sound of the original DAW's devices.
 - Plug-ins have to be installed in REAPER to load. Plug-in state is passed through unchanged.
+- The macOS version is built and tested automatically (conversion tests and command-line tools), but it has not yet been tried inside REAPER on a Mac. Please report any problem.
 
 ## Building from source
 
-Requires Windows, CMake 3.20+ and Visual Studio 2019 or later (C++17). Python 3 for the tests and packaging.
+Requires CMake 3.20+ and a C++17 compiler: Visual Studio 2019 or later on Windows, or Xcode or its command line tools on macOS (the macOS build is universal: arm64 and x86_64, macOS 10.15+). Python 3 for the tests and packaging.
 
 ```
-cmake -S . -B build -A x64
+cmake -S . -B build -A x64                 # on macOS: cmake -S . -B build
 cmake --build build --config Release
-cmake --install build --config Release     # copies the DLL into %APPDATA%\REAPER\UserPlugins (close REAPER first)
+cmake --install build --config Release     # copies the extension into REAPER's UserPlugins folder (close REAPER first)
 python tools/make_package.py               # dist/ folder and zip, as published in Releases
 ```
 
-The binaries are in `build/Release`: the DLL and `dawproject2rpp.exe`, `rpp2dawproject.exe`.
+The binaries are in `build/Release`: the extension (`reaper_dawproject-x64.dll` or `reaper_dawproject.dylib`) and the command-line tools (`dawproject2rpp`, `rpp2dawproject`, with `.exe` on Windows).
 
 ## Tests
 
@@ -150,7 +166,7 @@ The tests take an optional path to the binaries (default `build/Release`). `test
 
 ## Releases
 
-The GitHub Actions workflow (`.github/workflows/build.yml`) builds and tests every push and pull request and uploads the package as a build artifact. Pushing a tag such as `v0.1.1` also creates a GitHub release with the zip attached. Set the same version in `CMakeLists.txt` first:
+The GitHub Actions workflow (`.github/workflows/build.yml`) builds and tests every push and pull request on Windows and macOS and uploads both packages as build artifacts. Pushing a tag such as `v0.1.1` also creates a GitHub release with both zips attached. Set the same version in `CMakeLists.txt` first:
 
 ```
 git tag v0.1.1
@@ -168,7 +184,7 @@ git push origin v0.1.1
 - `cli/` – the command-line tools
 - `tests/` – automated tests
 - `packaging/README.md` – the README that goes into the release zip
-- `third_party/` – bundled libraries with their licenses
+- `third_party/` – bundled libraries with their licenses (`WDL/swell`: Cockos' SWELL headers, used by the macOS build)
 - `tools/` – packaging
 
 ## License
